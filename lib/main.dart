@@ -1,13 +1,15 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_pdfview/flutter_pdfview.dart';
 import 'dart:io';
 import 'package:flutter_speed_dial/flutter_speed_dial.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import '../models/manual.dart';
+import '../services/manual_service.dart';
+import 'pdf_viewer_screen.dart';
+import 'manual_search_delegate.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 void main() {
-  runApp(ManualsApp());
+  runApp(const ManualsApp());
 }
 
 class ManualsApp extends StatelessWidget {
@@ -33,10 +35,10 @@ class MainScreen extends StatefulWidget {
 }
 
 class _MainScreenState extends State<MainScreen> {
-  List<Map<String, String>> _manuals = [];
-  List<Map<String, String>> _filteredManuals = [];
-  // search web for manual
-  // download manual
+  final ManualService _manualService = ManualService();
+  List<Manual> _manuals = [];
+  List<Manual> _filteredManuals = [];
+
   @override
   void initState() {
     super.initState();
@@ -44,50 +46,41 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   Future<void> _loadManuals() async {
-    final prefs = await SharedPreferences.getInstance();
-    final manualList = prefs.getStringList('manuals') ?? [];
+    final manuals = await _manualService.loadManuals();
     setState(() {
-      _manuals = manualList
-          .map((e) => Map<String, String>.from(Uri.splitQueryString(e)))
-          .toList();
-      _filteredManuals = _manuals;
+      _manuals = manuals;
+      _filteredManuals = manuals;
     });
   }
 
-  Future<void> _saveManuals() async {
-    final prefs = await SharedPreferences.getInstance();
-    final manualList =
-        _manuals.map((e) => Uri(queryParameters: e).query).toList();
-    await prefs.setStringList('manuals', manualList);
-  }
-
   Future<void> _uploadManual() async {
-    FilePickerResult? result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['pdf'],
-    );
+    String manualName = await _showNameDialog(context);
+    try {
+      FilePickerResult? result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['pdf'],
+      );
 
-    if (result != null) {
-      File file = File(result.files.single.path!);
-      String fileName = result.files.single.name;
+      if (result != null) {
+        String filePath = result.files.single.path!;
 
-      String manualName = await _showNameDialog(context);
+        if (manualName.isNotEmpty) {
+          final newManual = Manual(name: manualName, path: filePath);
 
-      if (manualName.isNotEmpty) {
-        final directory = await getApplicationDocumentsDirectory();
-        final newFile = await file.copy('%{directory.path}/%fileName');
-
-        setState(() {
-          _manuals.add({'name': manualName, 'path': newFile.path});
-          _filteredManuals = _manuals;
-        });
-        _saveManuals();
+          setState(() {
+            _manuals.add(newManual);
+            _filteredManuals = _manuals;
+          });
+          await _manualService.saveManuals(_manuals);
+        }
       }
-    } else {}
+    } catch (e) {
+      _showErrorDialog('Failed to upload manual with error $e');
+    }
   }
 
   Future<String> _showNameDialog(BuildContext context) async {
-    TextEditingController _nameController = TextEditingController();
+    TextEditingController nameController = TextEditingController();
     String manualName = '';
     await showDialog(
       context: context,
@@ -95,13 +88,13 @@ class _MainScreenState extends State<MainScreen> {
         return AlertDialog(
           title: const Text('Name the manual'),
           content: TextField(
-            controller: _nameController,
+            controller: nameController,
             decoration: const InputDecoration(hintText: 'Enter name'),
           ),
           actions: [
             TextButton(
               onPressed: () {
-                manualName = _nameController.text;
+                manualName = nameController.text;
                 Navigator.of(context).pop();
               },
               child: const Icon(Icons.check),
@@ -113,13 +106,133 @@ class _MainScreenState extends State<MainScreen> {
     return manualName;
   }
 
-  void _searchManuals(String query) {
-    setState(() {
-      _filteredManuals = _manuals
-          .where((manual) =>
-              manual['name']!.toLowerCase().contains(query.toLowerCase()))
-          .toList();
-    });
+  Future<void> _openManual(Manual manual, BuildContext context) async {
+    final file = File(manual.path);
+    if (await file.exists() && (context.mounted)) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => PDFViewerScreen(manual.path, manual.name),
+        ),
+      );
+    } else {
+      _showErrorDialog('Invalid file path. Press OK to delete from library.');
+    }
+  }
+
+  Future<void> _deleteManual(int index) async {
+    bool confirmDelete = await showDialog(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: const Text('Confirm'),
+              content: const Text(
+                  'Are you sure you want to delete this manual from the library?'),
+              actions: <Widget>[
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: const Text('Cancel'),
+                ),
+                TextButton(
+                  child: const Text('Delete'),
+                  onPressed: () => Navigator.of(context).pop(true),
+                ),
+              ],
+            );
+          },
+        ) ??
+        false;
+    if (confirmDelete) {
+      setState(() {
+        _manuals.removeAt(index);
+        _filteredManuals = _manuals;
+      });
+      await _manualService.saveManuals(_manuals);
+    }
+  }
+
+  // Web search - not implemented
+  Future<void> _searchWebManuals() async {
+    // placeholder
+    showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: const Text('Search Web'),
+            content:
+                const Text('Search the Web for manuals. Not yet implemented.'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text("Text"),
+              ),
+            ],
+          );
+        });
+  }
+
+  void _showErrorDialog(String message) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Error'),
+          content: Text(message),
+          actions: [
+            TextButton(
+              child: const Text('OK'),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showSearch(BuildContext context) {
+    showSearch(
+      context: context,
+      delegate: ManualSearchDelegate(_manuals, _openManual),
+    );
+  }
+
+  void _showInfoPopup(BuildContext context, Manual manual) async {
+    final details = await _manualService.getFileDetails(manual.path);
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Details for ${manual.name}'),
+          content: SingleChildScrollView(
+            child: ListBody(
+              children: details.entries
+                  .map((entry) => Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4.0),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('${entry.key}: ',
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold)),
+                            Expanded(child: Text(entry.value)),
+                          ],
+                        ),
+                      ))
+                  .toList(),
+            ),
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Close'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -132,13 +245,8 @@ class _MainScreenState extends State<MainScreen> {
         title: const Text('Manual Store'),
         actions: [
           IconButton(
-            onPressed: () {
-              showSearch(
-                context: context,
-                delegate: ManualSearchDelegate(_manuals),
-              );
-            },
-            icon: Icon(Icons.search),
+            onPressed: () => _showSearch(context),
+            icon: const Icon(Icons.search),
           )
         ],
       ),
@@ -146,119 +254,48 @@ class _MainScreenState extends State<MainScreen> {
         itemCount: _filteredManuals.length,
         itemBuilder: (context, index) {
           return ListTile(
-            title: Text(_filteredManuals[index]['name']!),
+            title: Text(_filteredManuals[index].name,
+                style:
+                    const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
             onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) =>
-                      PDFViewerScreen(_filteredManuals[index]['path']!),
-                ),
-              );
+              _openManual(_filteredManuals[index], context);
             },
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.info_outline),
+                  onPressed: () =>
+                      _showInfoPopup(context, _filteredManuals[index]),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.delete),
+                  onPressed: () => _deleteManual(index),
+                ),
+              ],
+            ),
           );
         },
       ),
-      floatingActionButton:
-          SpeedDial(icon: Icons.add, activeIcon: Icons.close, children: [
-        SpeedDialChild(
-          child: const Icon(Icons.search),
-          backgroundColor: Colors.blue,
-          label: 'Search Web',
-          onTap: () {},
-        ),
-        SpeedDialChild(
-          child: const Icon(Icons.upload),
-          backgroundColor: Colors.grey,
-          label: 'Upload',
-          onTap: () {
-            _uploadManual();
-          },
-        )
-      ]),
-    );
-  }
-}
-
-class ManualSearchDelegate extends SearchDelegate {
-  final List<Map<String, String>> manuals;
-
-  ManualSearchDelegate(this.manuals);
-
-  @override
-  List<Widget>? buildActions(BuildContext context) {
-    return [IconButton(icon: Icon(Icons.clear), onPressed: () => query = '')];
-  }
-
-  @override
-  Widget? buildLeading(BuildContext context) {
-    return IconButton(
-      icon: Icon(Icons.arrow_back),
-      onPressed: () => close(context, null),
-    );
-  }
-
-  @override
-  Widget buildResults(BuildContext context) {
-    final results = manuals
-        .where((manual) =>
-            manual['name']!.toLowerCase().contains(query.toLowerCase()))
-        .toList();
-
-    return ListView.builder(
-      itemCount: results.length,
-      itemBuilder: (context, index) {
-        return ListTile(
-          title: Text(results[index]['name']!),
-          onTap: () {
-            // Navigate to the PDF viewer screen
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => PDFViewerScreen(results[index]['path']!),
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-
-  @override
-  Widget buildSuggestions(BuildContext context) {
-    final suggestions = manuals
-        .where((manual) =>
-            manual['name']!.toLowerCase().contains(query.toLowerCase()))
-        .toList();
-
-    return ListView.builder(
-      itemCount: suggestions.length,
-      itemBuilder: (context, index) {
-        return ListTile(
-          title: Text(suggestions[index]['name']!),
-          onTap: () {
-            query = suggestions[index]['name']!;
-            showResults(context);
-          },
-        );
-      },
-    );
-  }
-}
-
-class PDFViewerScreen extends StatelessWidget {
-  final String path;
-
-  PDFViewerScreen(this.path);
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Manual Name'),
-      ),
-      body: PDFView(
-        filePath: path,
+      floatingActionButton: SpeedDial(
+        icon: Icons.add,
+        activeIcon: Icons.close,
+        children: [
+          SpeedDialChild(
+            child: const Icon(Icons.upload),
+            backgroundColor: Colors.grey,
+            label: 'Upload',
+            onTap: () {
+              _uploadManual();
+            },
+          ),
+          SpeedDialChild(
+            child: const Icon(Icons.search),
+            backgroundColor: Colors.blue,
+            label: 'Search Web',
+            onTap: _searchWebManuals,
+          )
+        ],
       ),
     );
   }
