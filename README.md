@@ -4,9 +4,10 @@ Android application to store and view PDFs. Initially made to conveniently store
 Uses sqflite to store manual info.
 
 ## Done
-- Stores file path of PDF.
+- Upload and store file path of PDF.
 - Lets user choose a custom name for stored 'manual'.
-- CRUD functions available.
+- Can view file info and edit file path.
+- CRUD functions.
 - Can add favourites.
 
 ## Planned
