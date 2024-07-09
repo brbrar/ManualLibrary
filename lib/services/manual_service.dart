@@ -26,6 +26,11 @@ class ManualService {
     await _databaseHelper.updateManual(manual.toMap());
   }
 
+  Future<void> toggleFavourites(Manual manual) async {
+    final updatedManual = manual.copyWith(isFavourite: !manual.isFavourite);
+    await updateManual(updatedManual);
+  }
+
   Future<Map<String, String>> getFileDetails(String path) async {
     try {
       File file = File(path);

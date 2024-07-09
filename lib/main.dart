@@ -38,6 +38,7 @@ class _MainScreenState extends State<MainScreen> {
   final ManualService _manualService = ManualService();
   List<Manual> _manuals = [];
   List<Manual> _filteredManuals = [];
+  bool _showFavourites = false;
 
   @override
   void initState() {
@@ -45,14 +46,18 @@ class _MainScreenState extends State<MainScreen> {
     _loadManuals(); // load manuals on start
   }
 
+  // Load all manuals to view in home page
   Future<void> _loadManuals() async {
     final manuals = await _manualService.loadManuals();
     setState(() {
       _manuals = manuals;
-      _filteredManuals = manuals;
+      _filteredManuals = _showFavourites
+          ? manuals.where((m) => m.isFavourite).toList()
+          : manuals;
     });
   }
 
+  // Upload manuals
   Future<void> _uploadManual() async {
     String manualName = await _showNameDialog(context);
     try {
@@ -80,6 +85,7 @@ class _MainScreenState extends State<MainScreen> {
     }
   }
 
+  // Dialog to set manual name
   Future<String> _showNameDialog(BuildContext context) async {
     TextEditingController nameController = TextEditingController();
     String manualName = '';
@@ -107,6 +113,7 @@ class _MainScreenState extends State<MainScreen> {
     return manualName;
   }
 
+  // open manual and view as PDF
   Future<void> _openManual(Manual manual, BuildContext context) async {
     final file = File(manual.path);
     if (await file.exists() && (context.mounted)) {
@@ -121,6 +128,7 @@ class _MainScreenState extends State<MainScreen> {
     }
   }
 
+  // Delete manual
   Future<void> _deleteManual(Manual manual) async {
     bool confirmDelete = await showDialog(
           context: context,
@@ -149,6 +157,7 @@ class _MainScreenState extends State<MainScreen> {
     }
   }
 
+  // Edit manual name and file path
   Future<void> _editManual(Manual manual) async {
     TextEditingController nameController =
         TextEditingController(text: manual.name);
@@ -227,6 +236,20 @@ class _MainScreenState extends State<MainScreen> {
     );
   }
 
+  Future<void> _toggleFavourite(Manual manual) async {
+    await _manualService.toggleFavourites(manual);
+    await _loadManuals();
+  }
+
+  Future<void> _toggleShowFavourites() async {
+    setState(() {
+      _showFavourites = !_showFavourites;
+      _filteredManuals = _showFavourites
+          ? _manuals.where((m) => m.isFavourite).toList()
+          : _manuals;
+    });
+  }
+
   // Web search - not implemented
   Future<void> _searchWebManuals() async {
     // placeholder
@@ -247,6 +270,7 @@ class _MainScreenState extends State<MainScreen> {
         });
   }
 
+  // Error dialog
   void _showErrorDialog(String message) {
     showDialog(
       context: context,
@@ -265,6 +289,7 @@ class _MainScreenState extends State<MainScreen> {
     );
   }
 
+  // Search stored manuals
   void _showSearch(BuildContext context) {
     showSearch(
       context: context,
@@ -272,6 +297,7 @@ class _MainScreenState extends State<MainScreen> {
     );
   }
 
+  // Info popup for selected pdf/manual
   void _showInfoPopup(BuildContext context, Manual manual) async {
     final details = await _manualService.getFileDetails(manual.path);
 
@@ -321,6 +347,12 @@ class _MainScreenState extends State<MainScreen> {
         title: const Text('Manual Store'),
         actions: [
           IconButton(
+            onPressed: _toggleShowFavourites,
+            icon: Icon(
+              _showFavourites ? (Icons.favorite) : (Icons.favorite_border),
+            ),
+          ),
+          IconButton(
             onPressed: () => _showSearch(context),
             icon: const Icon(Icons.search),
           )
@@ -329,66 +361,77 @@ class _MainScreenState extends State<MainScreen> {
       body: ListView.builder(
         itemCount: _filteredManuals.length,
         itemBuilder: (context, index) {
+          final manual = _filteredManuals[index];
           return ListTile(
             title: Text(_filteredManuals[index].name,
                 style:
                     const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
             onTap: () => _openManual(_filteredManuals[index], context),
-            trailing: PopupMenuButton<String>(
-              padding: EdgeInsets.zero,
-              icon: const Icon(Icons.more_vert),
-              onSelected: (String result) {
-                switch (result) {
-                  case 'info':
-                    _showInfoPopup(context, _filteredManuals[index]);
-                    break;
-                  case 'delete':
-                    _deleteManual(_filteredManuals[index]);
-                    break;
-                  case 'edit':
-                    _editManual(_filteredManuals[index]);
-                    break;
-                }
-              },
-              itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-                const PopupMenuItem<String>(
+            trailing: Row(
+              children: [
+                IconButton(
+                    onPressed: () => _toggleFavourite(manual),
+                    icon: Icon(manual.isFavourite
+                        ? Icons.favorite
+                        : Icons.favorite_border)),
+                PopupMenuButton<String>(
                   padding: EdgeInsets.zero,
-                  value: 'info',
-                  child: Center(
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text('Info'),
-                        Icon(Icons.info),
-                      ],
+                  icon: const Icon(Icons.more_vert),
+                  onSelected: (String result) {
+                    switch (result) {
+                      case 'info':
+                        _showInfoPopup(context, _filteredManuals[index]);
+                        break;
+                      case 'delete':
+                        _deleteManual(_filteredManuals[index]);
+                        break;
+                      case 'edit':
+                        _editManual(_filteredManuals[index]);
+                        break;
+                    }
+                  },
+                  itemBuilder: (BuildContext context) =>
+                      <PopupMenuEntry<String>>[
+                    const PopupMenuItem<String>(
+                      padding: EdgeInsets.zero,
+                      value: 'info',
+                      child: Center(
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text('Info'),
+                            Icon(Icons.info),
+                          ],
+                        ),
+                      ),
                     ),
-                  ),
-                ),
-                const PopupMenuItem<String>(
-                  padding: EdgeInsets.zero,
-                  value: 'edit',
-                  child: Center(
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text('Edit'),
-                        Icon(Icons.edit),
-                      ],
+                    const PopupMenuItem<String>(
+                      padding: EdgeInsets.zero,
+                      value: 'edit',
+                      child: Center(
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text('Edit'),
+                            Icon(Icons.edit),
+                          ],
+                        ),
+                      ),
                     ),
-                  ),
-                ),
-                const PopupMenuItem<String>(
-                  padding: EdgeInsets.zero,
-                  value: 'delete',
-                  child: Center(
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text('Delete'),
-                        Icon(Icons.delete),
-                      ],
+                    const PopupMenuItem<String>(
+                      padding: EdgeInsets.zero,
+                      value: 'delete',
+                      child: Center(
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text('Delete'),
+                            Icon(Icons.delete),
+                          ],
+                        ),
+                      ),
                     ),
-                  ),
+                  ],
                 ),
               ],
             ),

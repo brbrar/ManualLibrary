@@ -25,7 +25,8 @@ class DatabaseHelper {
       CREATE TABLE manuals(
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
-        path TEXT NOT NULL
+        path TEXT NOT NULL,
+        isFavourite INTEGER NOT NULL DEFAULT 0
       )
     ''');
   }
