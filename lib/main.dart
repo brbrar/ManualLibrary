@@ -425,71 +425,66 @@ class _MainScreenState extends State<MainScreen> {
                 style:
                     const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
             onTap: () => _openManual(_filteredManuals[index], context),
-            trailing: Row(
-              children: [
-                IconButton(
-                    onPressed: () => _toggleFavourite(manual),
-                    icon: Icon(manual.isFavourite
-                        ? Icons.favorite
-                        : Icons.favorite_border)),
-                PopupMenuButton<String>(
+            leading: IconButton(
+                onPressed: () => _toggleFavourite(manual),
+                icon: Icon(manual.isFavourite
+                    ? Icons.favorite
+                    : Icons.favorite_border)),
+            trailing: PopupMenuButton<String>(
+              padding: EdgeInsets.zero,
+              icon: const Icon(Icons.more_vert),
+              onSelected: (String result) {
+                switch (result) {
+                  case 'info':
+                    _showInfoPopup(context, _filteredManuals[index]);
+                    break;
+                  case 'delete':
+                    _deleteManual(_filteredManuals[index]);
+                    break;
+                  case 'edit':
+                    _editManual(_filteredManuals[index]);
+                    break;
+                }
+              },
+              itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+                const PopupMenuItem<String>(
                   padding: EdgeInsets.zero,
-                  icon: const Icon(Icons.more_vert),
-                  onSelected: (String result) {
-                    switch (result) {
-                      case 'info':
-                        _showInfoPopup(context, _filteredManuals[index]);
-                        break;
-                      case 'delete':
-                        _deleteManual(_filteredManuals[index]);
-                        break;
-                      case 'edit':
-                        _editManual(_filteredManuals[index]);
-                        break;
-                    }
-                  },
-                  itemBuilder: (BuildContext context) =>
-                      <PopupMenuEntry<String>>[
-                    const PopupMenuItem<String>(
-                      padding: EdgeInsets.zero,
-                      value: 'info',
-                      child: Center(
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text('Info'),
-                            Icon(Icons.info),
-                          ],
-                        ),
-                      ),
+                  value: 'info',
+                  child: Center(
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text('Info'),
+                        Icon(Icons.info),
+                      ],
                     ),
-                    const PopupMenuItem<String>(
-                      padding: EdgeInsets.zero,
-                      value: 'edit',
-                      child: Center(
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text('Edit'),
-                            Icon(Icons.edit),
-                          ],
-                        ),
-                      ),
+                  ),
+                ),
+                const PopupMenuItem<String>(
+                  padding: EdgeInsets.zero,
+                  value: 'edit',
+                  child: Center(
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text('Edit'),
+                        Icon(Icons.edit),
+                      ],
                     ),
-                    const PopupMenuItem<String>(
-                      padding: EdgeInsets.zero,
-                      value: 'delete',
-                      child: Center(
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text('Delete'),
-                            Icon(Icons.delete),
-                          ],
-                        ),
-                      ),
+                  ),
+                ),
+                const PopupMenuItem<String>(
+                  padding: EdgeInsets.zero,
+                  value: 'delete',
+                  child: Center(
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text('Delete'),
+                        Icon(Icons.delete),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
               ],
             ),

@@ -1,6 +1,5 @@
 import 'dart:io';
 
-import 'package:shared_preferences/shared_preferences.dart';
 import '../models/manual.dart';
 import '../helpers/database_helper.dart';
 
@@ -8,10 +7,16 @@ class ManualService {
   final DatabaseHelper _databaseHelper = DatabaseHelper.instance;
 
   Future<List<Manual>> loadManuals() async {
-    final List<Map<String, dynamic>> maps = await _databaseHelper.getManuals();
-    return List.generate(maps.length, (i) {
-      return Manual.fromMap(maps[i]);
-    });
+    try {
+      final List<Map<String, dynamic>> maps =
+          await _databaseHelper.getManuals();
+      return List.generate(maps.length, (i) {
+        return Manual.fromMap(maps[i]);
+      });
+    } catch (e) {
+      print('Error loading manuals: $e');
+      return [];
+    }
   }
 
   Future<void> saveManual(Manual manual) async {
