@@ -2,6 +2,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:flutter_speed_dial/flutter_speed_dial.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/manual.dart';
 import '../services/manual_service.dart';
 import 'pdf_viewer_screen.dart';
@@ -43,7 +44,64 @@ class _MainScreenState extends State<MainScreen> {
   @override
   void initState() {
     super.initState();
+    _checkFirstLaunch();
     _loadManuals(); // load manuals on start
+  }
+
+  Future<void> _checkFirstLaunch() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    bool isFirstLaunch = prefs.getBool('first_launch') ?? true;
+
+    if (isFirstLaunch) {
+      _showFirstLaunchDialog();
+      await prefs.setBool('first_launch', false);
+    }
+    _requestPermissions();
+  }
+
+  Future<void> _showFirstLaunchDialog() async {
+    await showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Manual Library'),
+          content: const Text(
+              'Add a new PDF manual by pressing the + icon and selecting upload. '
+              'Use the search icon to search already added manuals. '),
+          actions: <Widget>[
+            TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+                child: const Text('OK'))
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _requestPermissions() async {
+    var status = await Permission.storage.status;
+    if (!status.isGranted) {
+      await showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: const Text('Permissions Required'),
+            content: const Text(
+                'This app requires storage permissions in order to save and read manual files.'),
+            actions: <Widget>[
+              TextButton(
+                  onPressed: () async {
+                    Navigator.of(context).pop();
+                    await Permission.storage.request();
+                  },
+                  child: const Text('OK'))
+            ],
+          );
+        },
+      );
+    }
   }
 
   // Load all manuals to view in home page
@@ -59,12 +117,12 @@ class _MainScreenState extends State<MainScreen> {
 
   // Upload manuals
   Future<void> _uploadManual() async {
-    String manualName = await _showNameDialog(context);
     try {
       FilePickerResult? result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['pdf'],
       );
+      String manualName = await _showNameDialog(context);
 
       if (result != null) {
         String filePath = result.files.single.path!;
