@@ -3,6 +3,8 @@
 Android application to store and view PDFs. Initially made to conveniently store Metal Earth kit manuals in one place (hence the name).
 Uses sqflite to store manual info.
 
+[Download APK](https://github.com/brbrar/ManualLibrary/releases)
+
 ## Done
 - Upload and store file path of PDF.
 - Lets user choose a custom name for stored 'manual'.
