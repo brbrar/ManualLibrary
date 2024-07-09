@@ -36,9 +36,9 @@ dependencies:
   flutter_pdfview: ^1.0.4
   shared_preferences: ^2.0.6
   file_picker: ^8.0.5
-  permission_handler: 11.3.1
-  
-
+  permission_handler: ^11.3.1
+  sqflite: ^2.2.8+4
+  path: ^1.8.3
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.6

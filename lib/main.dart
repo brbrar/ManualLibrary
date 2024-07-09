@@ -71,7 +71,8 @@ class _MainScreenState extends State<MainScreen> {
             _manuals.add(newManual);
             _filteredManuals = _manuals;
           });
-          await _manualService.saveManuals(_manuals);
+          await _manualService.saveManual(newManual);
+          await _loadManuals();
         }
       }
     } catch (e) {
@@ -120,7 +121,7 @@ class _MainScreenState extends State<MainScreen> {
     }
   }
 
-  Future<void> _deleteManual(int index) async {
+  Future<void> _deleteManual(Manual manual) async {
     bool confirmDelete = await showDialog(
           context: context,
           builder: (BuildContext context) {
@@ -143,12 +144,87 @@ class _MainScreenState extends State<MainScreen> {
         ) ??
         false;
     if (confirmDelete) {
-      setState(() {
-        _manuals.removeAt(index);
-        _filteredManuals = _manuals;
-      });
-      await _manualService.saveManuals(_manuals);
+      await _manualService.deleteManual(manual.id!);
+      await _loadManuals();
     }
+  }
+
+  Future<void> _editManual(Manual manual) async {
+    TextEditingController nameController =
+        TextEditingController(text: manual.name);
+    String? newPath = manual.path;
+
+    await showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Edit'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('Name'),
+              TextField(
+                controller: nameController,
+                decoration: const InputDecoration(hintText: 'Enter new name'),
+              ),
+              const SizedBox(height: 16),
+              const Text('File Path'),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      newPath!,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.edit),
+                    onPressed: () async {
+                      FilePickerResult? result =
+                          await FilePicker.platform.pickFiles(
+                        type: FileType.custom,
+                        allowedExtensions: ['pdf'],
+                      );
+
+                      if (result != null) {
+                        setState(() {
+                          newPath = result.files.single.path!;
+                        });
+                      }
+                    },
+                  ),
+                ],
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () async {
+                if (nameController.text.isNotEmpty) {
+                  Manual updatedManual = manual.copyWith(
+                    name: nameController.text,
+                    path: newPath,
+                  );
+
+                  await _manualService.updateManual(updatedManual);
+                  await _loadManuals();
+
+                  Navigator.of(context).pop();
+                } else {
+                  _showErrorDialog('Manual name cannot be empty.');
+                }
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   // Web search - not implemented
@@ -257,20 +333,62 @@ class _MainScreenState extends State<MainScreen> {
             title: Text(_filteredManuals[index].name,
                 style:
                     const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-            onTap: () {
-              _openManual(_filteredManuals[index], context);
-            },
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.info_outline),
-                  onPressed: () =>
-                      _showInfoPopup(context, _filteredManuals[index]),
+            onTap: () => _openManual(_filteredManuals[index], context),
+            trailing: PopupMenuButton<String>(
+              padding: EdgeInsets.zero,
+              icon: const Icon(Icons.more_vert),
+              onSelected: (String result) {
+                switch (result) {
+                  case 'info':
+                    _showInfoPopup(context, _filteredManuals[index]);
+                    break;
+                  case 'delete':
+                    _deleteManual(_filteredManuals[index]);
+                    break;
+                  case 'edit':
+                    _editManual(_filteredManuals[index]);
+                    break;
+                }
+              },
+              itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+                const PopupMenuItem<String>(
+                  padding: EdgeInsets.zero,
+                  value: 'info',
+                  child: Center(
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text('Info'),
+                        Icon(Icons.info),
+                      ],
+                    ),
+                  ),
                 ),
-                IconButton(
-                  icon: const Icon(Icons.delete),
-                  onPressed: () => _deleteManual(index),
+                const PopupMenuItem<String>(
+                  padding: EdgeInsets.zero,
+                  value: 'edit',
+                  child: Center(
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text('Edit'),
+                        Icon(Icons.edit),
+                      ],
+                    ),
+                  ),
+                ),
+                const PopupMenuItem<String>(
+                  padding: EdgeInsets.zero,
+                  value: 'delete',
+                  child: Center(
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text('Delete'),
+                        Icon(Icons.delete),
+                      ],
+                    ),
+                  ),
                 ),
               ],
             ),

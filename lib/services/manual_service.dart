@@ -2,39 +2,44 @@ import 'dart:io';
 
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/manual.dart';
+import '../helpers/database_helper.dart';
 
 class ManualService {
-  static const String _key = 'manuals';
+  final DatabaseHelper _databaseHelper = DatabaseHelper.instance;
 
   Future<List<Manual>> loadManuals() async {
-    final prefs = await SharedPreferences.getInstance();
-    final manualList = prefs.getStringList(_key) ?? [];
-    return manualList
-        .map((e) => Manual.fromMap(Map<String, String>.from(Uri.splitQueryString(e))))
-        .toList();
+    final List<Map<String, dynamic>> maps = await _databaseHelper.getManuals();
+    return List.generate(maps.length, (i) {
+      return Manual.fromMap(maps[i]);
+    });
   }
 
-  Future<void> saveManuals(List<Manual> manuals) async {
-    final prefs = await SharedPreferences.getInstance();
-    final manualList = manuals.map((e) => Uri(queryParameters: e.toMap()).query).toList();
-    await prefs.setStringList(_key, manualList);
+  Future<void> saveManual(Manual manual) async {
+    await _databaseHelper.insertManual(manual.toMap());
+  }
+
+  Future<void> deleteManual(int id) async {
+    await _databaseHelper.deleteManual(id);
+  }
+
+  Future<void> updateManual(Manual manual) async {
+    await _databaseHelper.updateManual(manual.toMap());
   }
 
   Future<Map<String, String>> getFileDetails(String path) async {
-  try {
-    File file = File(path);
-    FileStat fileStat = await file.stat();
-    return {
-      'Path': path,
-      'Original Name': path.split('/').last,
-      'Size': '${(fileStat.size / 1048576).toStringAsFixed(2)} MB',
-      'Modified': fileStat.modified.toString(),
-    };
-  } catch (e) {
-    return {
-      'Error': 'Could not retrieve file details: $e',
-    };
+    try {
+      File file = File(path);
+      FileStat fileStat = await file.stat();
+      return {
+        'Path': path,
+        'Original Name': path.split('/').last,
+        'Size': '${(fileStat.size / 1048576).toStringAsFixed(2)} MB',
+        'Modified': fileStat.modified.toString(),
+      };
+    } catch (e) {
+      return {
+        'Error': 'Could not retrieve file details: $e',
+      };
+    }
   }
-}
-
 }
