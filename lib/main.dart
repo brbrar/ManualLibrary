@@ -78,6 +78,18 @@ class _MainScreenState extends State<MainScreen> {
         );
       },
     );
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('Tap the heart icon to see your favourites'),
+        duration: const Duration(seconds: 5),
+        action: SnackBarAction(
+          label: 'OK',
+          onPressed: () {
+            ScaffoldMessenger.of(context).hideCurrentSnackBar();
+          },
+        ),
+      ),
+    );
   }
 
   Future<void> _requestPermissions() async {
@@ -139,7 +151,7 @@ class _MainScreenState extends State<MainScreen> {
         }
       }
     } catch (e) {
-      _showErrorDialog('Failed to upload manual with error $e');
+      _showErrorDialog(context, 'Failed to upload manual with error $e');
     }
   }
 
@@ -178,11 +190,12 @@ class _MainScreenState extends State<MainScreen> {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => PDFViewerScreen(manual.path, manual.name),
+          builder: (context) =>
+              PDFViewerScreen(manual.path, manual.name, _showErrorDialog),
         ),
       );
     } else {
-      _showErrorDialog('Invalid file path. Press OK to delete from library.');
+      _showErrorDialog(context, 'Error loading PDF.');
     }
   }
 
@@ -283,7 +296,7 @@ class _MainScreenState extends State<MainScreen> {
 
                   Navigator.of(context).pop();
                 } else {
-                  _showErrorDialog('Manual name cannot be empty.');
+                  _showErrorDialog(context, 'Manual name cannot be empty.');
                 }
               },
               child: const Text('Save'),
@@ -329,7 +342,7 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   // Error dialog
-  void _showErrorDialog(String message) {
+  void _showErrorDialog(BuildContext context, String message) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -402,13 +415,14 @@ class _MainScreenState extends State<MainScreen> {
         backgroundColor: Colors.green,
         centerTitle: true,
         //titleTextStyle: const TextStyle(fontWeight: FontWeight.bold),
-        title: const Text('Manual Store'),
+        title: const Text('Manual Library'),
         actions: [
           IconButton(
             onPressed: _toggleShowFavourites,
             icon: Icon(
               _showFavourites ? (Icons.favorite) : (Icons.favorite_border),
             ),
+            tooltip: "Show favourites",
           ),
           IconButton(
             onPressed: () => _showSearch(context),
