@@ -13,6 +13,5 @@ Uses sqflite to store file path and chosen name, and flutter_pdfview to view pdf
 - Can add favourites.
 
 ## To-do
-- Web search for PDFs online.
--- Allow saving of PDFs in web search.
-- Change to syncfusion_flutter_pdviewer instead of pdf_view
+Web search for PDFs online:
+- Allow saving of PDFs in web search.
