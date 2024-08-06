@@ -18,5 +18,5 @@ Web search for PDFs online:
 
 
 ## Screenshots
-![Home Screen](Screenshot1.jpg)
+![Home Screen](Screenshot1.jpg=20x)
 ![Favourites Screen](Screenshot2.jpg)
