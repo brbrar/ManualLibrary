@@ -19,6 +19,6 @@ Web search for PDFs online:
 
 ## Screenshots
 <div align="center">
-<img src="Screenshot1.jpg" width="50%">
-<img src="Screenshot2.jpg" width="50%">
+<img src="Screenshot1.jpg" width="200">
+<img src="Screenshot2.jpg" width="200">
 </div>
