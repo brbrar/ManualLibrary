@@ -15,3 +15,8 @@ Uses sqflite to store file path and chosen name, and syncfusion_pdfviewer to vie
 ## To-do
 Web search for PDFs online:
 - Allow saving of PDFs in web search.
+
+
+## Screenshots
+![Home Screen](Screenshot1.jpg)
+![Favourites Screen](Screenshot2.jpg)
